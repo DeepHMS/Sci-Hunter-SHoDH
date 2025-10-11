@@ -2,6 +2,10 @@
 
 Med-Harmonizer requires API keys for certain LLMs (e.g., OpenAI, xAI, DeepSeek). Follow these steps to get them:
 
+You can use our tool API-seeker (https://api-seeker.streamlit.app/) to get hep in API Key download
+
+OR
+
 OpenAI API Key (for GPT-5):
 
 Sign up or log in at platform.openai.com.
