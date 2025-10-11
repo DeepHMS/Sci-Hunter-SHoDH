@@ -2,24 +2,19 @@ import streamlit as st
 import pandas as pd
 import base64
 import io
+import asyncio
 from PIL import Image
 import pydicom
 from openai import OpenAI
 from huggingface_hub import InferenceClient
 from transformers import pipeline
-import time
-import asyncio
-from tenacity import retry, wait_exponential, stop_after_attempt
 from datetime import datetime
 import psutil
-from cryptography.fernet import Fernet
+from tenacity import retry, wait_exponential, stop_after_attempt
+import plotly.express as px
+import json
 
-# Generate or load encryption key (in production, store securely or let user provide)
-if 'encryption_key' not in st.session_state:
-    st.session_state.encryption_key = Fernet.generate_key()
-cipher = Fernet(st.session_state.encryption_key)
-
-# Session state for persistence
+# Initialize session state
 if 'uploaded_files' not in st.session_state:
     st.session_state.uploaded_files = []
 if 'results_df' not in st.session_state:
@@ -33,28 +28,11 @@ if 'api_keys' not in st.session_state:
 if 'batch_size' not in st.session_state:
     st.session_state.batch_size = 5
 
+# App title and disclaimer
 st.title("Med-Harmonizer: MRI Analysis AI")
 st.warning("LLM outputs are ~60-80% accurate per 2025 benchmarks; consult a radiologist. Not for clinical use.")
 
-# Step 1: Upload images with pydicom support
-uploaded_files = st.file_uploader("Upload MRI Images", type=["png", "jpg", "dcm"], accept_multiple_files=True)
-if uploaded_files:
-    successful_uploads = []
-    for f in uploaded_files:
-        try:
-            if f.name.endswith('.dcm'):
-                ds = pydicom.dcmread(f)
-                img_array = ds.pixel_array
-                image = Image.fromarray(img_array).convert('RGB')
-            else:
-                image = Image.open(f)
-            successful_uploads.append({'file': f, 'image': image, 'metadata': ds if 'ds' in locals() else None})
-        except Exception as e:
-            st.error(f"Failed to process {f.name}: {str(e)}")
-    st.session_state.uploaded_files = successful_uploads
-    st.write(f"Total images uploaded successfully: {len(successful_uploads)}")
-
-# Model list with versions and auth info
+# Model configurations
 models_info = {
     "Grok 4 (xAI)": {"version": "grok-4", "auth": "API Key (from xAI pro account)", "client_type": "xai", "model": "grok-4"},
     "GPT-5 (OpenAI)": {"version": "gpt-5", "auth": "API Key (from OpenAI pro/Plus)", "client_type": "openai", "model": "gpt-5"},
@@ -63,7 +41,72 @@ models_info = {
     "MedGemma (Google/HF)": {"version": "4B Multimodal", "auth": "Optional HF Token", "client_type": "hf", "model": "google/medgemma-4b-multimodal"},
 }
 
-# Step 2: Select models (max 3 checkboxes) with clear button
+# Fixed structured prompt
+fixed_prompt = """
+Interpret this MRI scan. Output in JSON format:
+{
+  "abnormalities": "Description of any abnormalities",
+  "diagnoses": "Potential diagnoses",
+  "confidence": "Confidence level (0-100)"
+}
+"""
+
+# Cached BLIP captioner
+@st.cache_resource
+def get_captioner():
+    return pipeline("image-to-text", model="Salesforce/blip-image-captioning-base")
+
+# Cached API client initialization
+@st.cache_resource
+def init_client(client_type, api_key):
+    if client_type == "openai":
+        return OpenAI(api_key=api_key)
+    elif client_type == "xai":
+        return OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
+    elif client_type == "hf":
+        return InferenceClient(token=api_key or None)
+    elif client_type == "deepseek":
+        return None  # Replace with actual DeepSeek client when available
+    return None
+
+# Preprocess image (cached)
+@st.cache_data
+def preprocess_image(file_data, _file_name):
+    try:
+        if _file_name.endswith('.dcm'):
+            ds = pydicom.dcmread(file_data)
+            img_array = ds.pixel_array
+            image = Image.fromarray(img_array).convert('RGB')
+            metadata = {
+                "PatientID": getattr(ds, 'PatientID', 'N/A'),
+                "StudyDate": getattr(ds, 'StudyDate', 'N/A'),
+                "Modality": getattr(ds, 'Modality', 'N/A')
+            }
+        else:
+            image = Image.open(file_data)
+            metadata = None
+        img_buffer = io.BytesIO()
+        image.save(img_buffer, format='JPEG')
+        base64_image = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        return image, base64_image, metadata
+    except Exception as e:
+        return None, None, f"Error processing {_file_name}: {str(e)}"
+
+# Step 1: Upload images
+st.subheader("Upload MRI Images")
+uploaded_files = st.file_uploader("Upload MRI Images", type=["png", "jpg", "dcm"], accept_multiple_files=True)
+if uploaded_files:
+    successful_uploads = []
+    for f in uploaded_files:
+        image, base64_image, metadata = preprocess_image(f, f.name)
+        if image:
+            successful_uploads.append({'file': f, 'image': image, 'base64_image': base64_image, 'metadata': metadata})
+        else:
+            st.error(metadata)  # metadata contains error message if processing failed
+    st.session_state.uploaded_files = successful_uploads
+    st.write(f"Total images uploaded successfully: {len(successful_uploads)}")
+
+# Step 2: Select models
 if st.session_state.uploaded_files:
     st.subheader("Select up to 3 Models for Analysis")
     selected = []
@@ -77,127 +120,124 @@ if st.session_state.uploaded_files:
                     break
     st.session_state.selected_models = selected[:3]
 
-    if st.button("Clear Model Selections"):
-        st.session_state.selected_models = []
-        st.rerun()
-
-    # User input for API keys
+    # API key inputs
     st.subheader("Enter API Keys")
     openai_key = st.text_input("OpenAI API Key (for GPT-5)", type="password", key="openai_key")
     hf_token = st.text_input("Hugging Face Token (for LLaVA/MedGemma)", type="password", key="hf_token")
-    encryption_key = st.text_input("Encryption Key (base64-encoded)", type="password", key="encryption_key")
-
-    # Encrypt and store keys if provided
     if openai_key:
-        st.session_state.api_keys['OPENAI_API_KEY'] = cipher.encrypt(openai_key.encode())
+        st.session_state.api_keys['openai'] = openai_key
     if hf_token:
-        st.session_state.api_keys['HF_TOKEN'] = cipher.encrypt(hf_token.encode())
-    if encryption_key:
-        try:
-            st.session_state.encryption_key = base64.b64decode(encryption_key)
-            cipher = Fernet(st.session_state.encryption_key)
-            st.success("Encryption key updated successfully.")
-        except Exception as e:
-            st.error(f"Invalid encryption key: {str(e)}")
+        st.session_state.api_keys['hf'] = hf_token
 
-# Fixed structured prompt
-fixed_prompt = """
-Interpret this MRI scan. Output in JSON format:
-{
-  "abnormalities": "Description of any abnormalities",
-  "diagnoses": "Potential diagnoses",
-  "confidence": "Confidence level (0-100)"
-}
-"""
+    # Reset button
+    if st.button("Reset All"):
+        st.session_state.clear()
+        st.rerun()
 
-# BLIP captioner for text-only models
-@st.cache_resource
-def get_captioner():
-    return pipeline("image-to-text", model="Salesforce/blip-image-captioning-base")
-
-# Memory check
+# Memory warning
 if psutil.virtual_memory().percent > 80:
-    st.warning("High memory usage; reduce batch size or close other apps.")
+    st.warning("High memory usage detected. Consider reducing batch size or closing other apps.")
 
-# Step 3: Configurable batch size and process
+# Step 3: Batch processing
 if st.session_state.selected_models and st.session_state.uploaded_files:
-    st.session_state.batch_size = st.slider("Batch Size", 1, 10, st.session_state.batch_size)
     total_images = len(st.session_state.uploaded_files)
+    # Dynamic batch size based on image count
+    max_batch_size = min(10, total_images)
+    st.session_state.batch_size = st.slider("Batch Size", 1, max_batch_size, st.session_state.batch_size)
     start_idx = st.session_state.current_batch * st.session_state.batch_size
     end_idx = min(start_idx + st.session_state.batch_size, total_images)
     batch_files = st.session_state.uploaded_files[start_idx:end_idx]
 
     if st.button(f"Analyze Batch {st.session_state.current_batch + 1} ({start_idx+1}-{end_idx} of {total_images})"):
         progress = st.progress(0)
+        status_text = st.empty()
         with st.spinner("Processing batch..."):
-
             @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
             async def analyze_image(item, model_name):
                 try:
-                    image = item['image']
-                    img_buffer = io.BytesIO()
-                    image.save(img_buffer, format='JPEG')
-                    base64_image = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
-
                     info = models_info[model_name]
-                    encrypted_key = st.session_state.api_keys.get(f"{info['client_type'].upper()}_API_KEY" if info['client_type'] in ['openai', 'xai'] else f"{info['client_type'].upper()}_TOKEN", b'')
-                    api_key = cipher.decrypt(encrypted_key).decode() if encrypted_key else ""
-
-                    if info['client_type'] == "openai":
-                        client = OpenAI(api_key=api_key)
+                    api_key = st.session_state.api_keys.get(info['client_type'], "")
+                    client = init_client(info['client_type'], api_key)
+                    base64_image = item['base64_image']
+                    if,var output
+                    if info['client_type'] == "openai" or info['client_type'] == "xai":
                         response = client.chat.completions.create(
                             model=info['model'],
-                            messages=[{"role": "user", "content": [{"type": "text", "text": fixed_prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}]}]
-                        )
-                        output = response.choices[0].message.content
-                    elif info['client_type'] == "xai":
-                        client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
-                        response = client.chat.completions.create(
-                            model=info['model'],
-                            messages=[{"role": "user", "content": [{"type": "text", "text": fixed_prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}]}]
+                            messages=[{"role": "user", "content": [{"type": "text", "text": fixed_prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}]}
                         )
                         output = response.choices[0].message.content
                     elif info['client_type'] == "hf":
-                        client = InferenceClient(token=api_key or None)
                         response = client.post(json={"inputs": fixed_prompt, "image": base64_image}, model=info['model'])
                         output = response.json()[0].get("generated_text", "Error")
                     elif info['client_type'] == "deepseek":
                         captioner = get_captioner()
                         caption = captioner(base64_image)[0]['generated_text']
                         prompt_with_caption = f"{fixed_prompt} based on this description: {caption}"
-                        output = "DeepSeek output (simulated with caption)"  # Replace with actual DeepSeek client
-                    return {f"{model_name} Output": output, f"{model_name} Version": info['version']}
+                        output = json.dumps({"abnormalities": "Simulated", "diagnoses": caption, "confidence": 80})  # Replace with actual DeepSeek call
+                    return {f"{model_name}_Output": output, f"{model_name}_Version": info['version']}
                 except Exception as e:
-                    if "rate_limit" in str(e):
-                        raise
-                    return {f"{model_name} Output": f"Error: {str(e)}"}
+                    return {f"{model_name}_Output": f"Error: {str(e)}", f"{model_name}_Version": info['version']}
 
             async def process_batch():
                 tasks = []
                 for i, item in enumerate(batch_files):
-                    row = {'Image File Name': item['file'].name, 'Timestamp': datetime.now()}
+                    row = {
+                        'Image_File_Name': item['file'].name,
+                        'Timestamp': datetime.now(),
+                        'Metadata': json.dumps(item['metadata']) if item['metadata'] else 'N/A'
+                    }
                     for model in st.session_state.selected_models:
                         tasks.append(analyze_image(item, model))
                     results = await asyncio.gather(*tasks, return_exceptions=True)
                     for res in results:
                         if not isinstance(res, Exception):
                             row.update(res)
+                        else:
+                            row.update({f"{model}_Output": f"Error: {str(res)}"})
                     st.session_state.results_df = pd.concat([st.session_state.results_df, pd.DataFrame([row])], ignore_index=True)
                     progress.progress((i + 1) / len(batch_files))
-                    await asyncio.sleep(0)
+                    status_text.text(f"Processed {i + 1}/{len(batch_files)} images")
+                    await asyncio.sleep(0.1)  # Prevent UI freeze
 
             asyncio.run(process_batch())
-
-        st.success("Batch processed!")
+        st.success("Batch processed successfully!")
+        
+        # Display results
         st.dataframe(st.session_state.results_df)
 
-        # Incremental download after batch
-        csv = st.session_state.results_df.to_csv(index=False)
-        st.download_button("Download Partial Results as CSV", csv, "mri_partial_results.csv", "text/csv")
+        # Visualize confidence scores
+        if not st.session_state.results_df.empty:
+            confidence_data = []
+            for model in st.session_state.selected_models:
+                output_col = f"{model}_Output"
+                if output_col in st.session_state.results_df:
+                    confidences = []
+                    for output in st.session_state.results_df[output_col]:
+                        try:
+                            json_output = json.loads(output)
+                            confidences.append(json_output.get('confidence', 0))
+                        except:
+                            confidences.append(0)
+                    confidence_data.append({'Model': model, 'Confidence': confidences})
+            
+            if confidence_data:
+                fig = px.bar(
+                    x=st.session_state.results_df['Image_File_Name'],
+                    y=[data['Confidence'] for data in confidence_data],
+                    barmode='group',
+                    labels={'x': 'Image', 'y': 'Confidence (%)', 'variable': 'Model'},
+                    title='Model Confidence Scores'
+                )
+                fig.update_layout(legend_title_text='Model')
+                st.plotly_chart(fig)
 
-    # Step 4: Ask for next batch
+        # Incremental download
+        csv = st.session_state.results_df.to_csv(index=False)
+        st.download_button("Download Partial Results as CSV", csv, f"mri_partial_results_{st.session_state.current_batch + 1}.csv", "text/csv")
+
+    # Step 4: Next batch
     if end_idx < total_images:
-        if st.button("Analyze Next Batch?"):
+        if st.button("Analyze Next Batch"):
             st.session_state.current_batch += 1
             st.rerun()
     else:
