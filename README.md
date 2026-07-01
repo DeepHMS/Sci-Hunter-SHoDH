@@ -1,30 +1,37 @@
-**Obtain API Keys**
+<div align="center">
+  <img src="Sci-hunter_header.png" width="80%" alt="Sci-Hunter Header">
+</div>
 
-Med-Harmonizer requires API keys for certain LLMs (e.g., OpenAI, xAI, DeepSeek). Follow these steps to get them:
+# Sci-Hunter 🧬🔍
 
-You can use our tool API-seeker (https://api-seeker.streamlit.app/) to get hep in API Key download
+**Automated Biomedical Literature Mining and Semantic Harmonization**
 
-OR
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B.svg)](https://streamlit.io/)
 
-OpenAI API Key (for GPT-5):
+**Sci-Hunter** is an automated and highly customizable literature mining tool designed to query the PubMed database, extract relevant manuscripts using complex keyword logic, and perform advanced text matching to identify specific user-defined features. 
 
-Sign up or log in at platform.openai.com.
+The application is built upon the foundation of **SHoDH (Semantic Harmonizer for Optimized Document Harvesting)**, a computational framework originally developed by **Dr. Deeptarup Biswas** in 2022. It is engineered to streamline high-throughput systematic reviews and integrate seamlessly into advanced biomedical analysis workflows.
 
-Navigate to "API Keys" under your account.
+---
 
-Click "Create new secret key," name it (e.g., "Med-Harmonizer"), and copy the key.
+## 🌟 Key Features
 
-Pro/Plus users get higher rate limits; input your personal key for best performance.
+* **NCBI PubMed API Integration:** Direct linkage to PubMed via `Biopython` for dynamic fetching of manuscript metadata based on customizable chronological and publication type filters.
+* **Advanced Semantic Harmonization:** Utilizes Levenshtein distance-based algorithms (`thefuzz`) to perform deep text-matching of user keywords against titles and abstracts, accounting for spelling variations and hyphenations.
+* **Feature-Specific Mapping:** Upload custom `.csv` lists of genes, proteins, or other clinical features to cross-reference against thousands of extracted manuscripts.
+* **Interactive Visual Analytics:** Generates dynamic timeline trends, interactive Venn diagrams, and cross-over bar plots utilizing `Plotly`.
+* **Secure Access Portal:** Built-in gateway utilizing Google Service Accounts (`gspread`) to log user access and maintain an authenticated session state.
+* **Comprehensive Data Export:** Clean, downloadable CSV outputs summarizing metadata, frequency hits, similarity percentages, and calculated confidence scores.
 
+---
 
-Hugging Face Token (for LLaVA/MedGemma):
+## ⚙️ Installation & Local Setup
 
-Go to huggingface.co and log in or sign up.
+To run Sci-Hunter locally or deploy it on a cloud platform (e.g., Hugging Face Spaces, Streamlit Community Cloud), follow these steps:
 
-Click your profile > "Settings" > "Access Tokens".
-
-Generate a new token, copy it, and use the free tier or upgrade for more requests.
-
-Encryption Key (base64-encoded):
-
-Generate a secure key locally using Python:
+### 1. Clone the Repository
+```bash
+git clone [https://github.com/yourusername/Sci-Hunter.git](https://github.com/yourusername/Sci-Hunter.git)
+cd Sci-Hunter
