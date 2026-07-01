@@ -16,6 +16,8 @@ The application is built upon the foundation of **SHoDH (Semantic Harmonizer for
 
 The Sci-Hunter is currently deployed in Hugging Face - link: **[https://sci-hunter.sodh/](https://deepbiswas-sci-hunter.hf.space/)**
 
+For inquiries, feedback, or collaboration opportunities, please feel free to reach out [deeptarupbiswas2020@gmail.com](mailto:deeptarupbiswas2020@gmail.com) | [LinkedIn](https://www.linkedin.com/in/deeptarup-biswas-039825178/)
+
 ---
 
 ## 📊 Understanding the Metrics & Search Logic
@@ -58,3 +60,5 @@ If Sci-Hunter or the SHoDH algorithm contributes to your research, publication, 
 ## 📜 License
 
 Sci-Hunter is protected under the **MIT License**. The software is provided "as is", without warranty of any kind, express or implied. Users are free to use and distribute the software in accordance with the terms of the MIT License, while retaining appropriate copyright and license notices.
+
+**Authentication & Privacy:** A quick login is required to access the tool. The email address provided will be used solely to satisfy NCBI API requirements for server requests and will be associated only with that active session.
