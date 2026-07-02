@@ -14,7 +14,7 @@
 
 The application is built upon the foundation of **SHoDH (Semantic Harmonizer for Optimized Document Harvesting)**, a computational framework originally developed by **Dr. Deeptarup Biswas** in 2022. It is engineered to streamline high-throughput systematic reviews and integrate seamlessly into advanced biomedical analysis workflows.
 
-The Sci-Hunter is currently deployed in Hugging Face - link: **[https://sci-hunter.sodh/](https://deepbiswas-sci-hunter.hf.space/)**
+The Sci-Hunter is currently deployed in Hugging Face - link: **[https://deepbiswas-sci-hunter.hf.space/](https://deepbiswas-sci-hunter.hf.space/)**
 
 For inquiries, feedback, or collaboration opportunities, please feel free to reach out [deeptarupbiswas2020@gmail.com](mailto:deeptarupbiswas2020@gmail.com) | [LinkedIn](https://www.linkedin.com/in/deeptarup-biswas-039825178/)
 
