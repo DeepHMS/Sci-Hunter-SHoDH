@@ -10,7 +10,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B.svg)](https://streamlit.io/)
 
-**Sci-Hunter** is an automated and highly customizable literature mining tool designed to query the PubMed database, extract relevant manuscripts using complex keyword logic, and perform advanced text matching to identify specific user-defined features. 
+**Sci-Hunter** is an open-access, automated and highly customizable literature mining tool designed to query the PubMed database, extract relevant manuscripts using multiple keyword, and perform advanced text matching to identify specific user-defined features. 
 
 The application is built upon the foundation of **SHoDH (Semantic Harmonizer for Optimized Document Harvesting)**, a computational framework originally developed by **Dr. Deeptarup Biswas** in 2022. It is engineered to streamline high-throughput systematic reviews and integrate seamlessly into advanced biomedical analysis workflows.
 
