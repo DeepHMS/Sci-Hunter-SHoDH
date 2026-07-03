@@ -18,7 +18,21 @@ The Sci-Hunter is currently deployed in Hugging Face - link: **[https://deepbisw
 
 Check the video tutorial to get a quick demo of the tool - **https://youtu.be/Duh4sA9ys64**
 
+For any feedback fill the form - **[Feedback Form](https://forms.gle/y78AWKd6gzW4aUF16)**
+
 For inquiries, feedback, or collaboration opportunities, please feel free to reach out [deeptarupbiswas2020@gmail.com](mailto:deeptarupbiswas2020@gmail.com) | [LinkedIn](https://www.linkedin.com/in/deeptarup-biswas-039825178/)
+
+---
+
+## 🚀 Recent Updates & Changelog
+
+* **Update 07032026:** Sci-Hunter now allows users to manually enter specific feature(s) for targeted searching under the "User Feature(s) Specific Search", alternative to file uploads.
+* **Update 06122026:** Improved NCBI API rate-limiting handling to prevent timeout errors during bulk fetching of high-volume queries.
+* **Update 05182026:** Fixed a critical bug where special characters (e.g., Greek letters) in CSV file uploads caused utf-8 encoding errors during the semantic mapping phase.
+* **Update 04052026:** Enhanced the Confidence Score algorithm to better normalize abstract term frequency against drastically varying abstract text lengths.
+* **Update 03222026:** Updated the Streamlit UI components, resulting in faster rendering of the output dataframes and resolving caching issues on rerun.
+* **Update 02142026:** Resolved an issue with the Similarity Index where hidden trailing whitespaces in user inputs caused unexpected false-negative matches.
+* **Update 01082026:** Implemented asynchronous background processing for the text harmonization module, reducing overall query execution time for large literature batches by ~30%.
 
 ---
 
