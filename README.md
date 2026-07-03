@@ -16,7 +16,7 @@ The application is built upon the foundation of **SHoDH (Semantic Harmonizer for
 
 The Sci-Hunter is currently deployed in Hugging Face - link: **[https://deepbiswas-sci-hunter.hf.space/](https://deepbiswas-sci-hunter.hf.space/)**
 
-Check the video tutorial to get a quick demo of the tool - **[https://youtu.be/Duh4sA9ys64]**(Sci-Hunter User Guide Video))
+Check the video tutorial to get a quick demo of the tool - **https://youtu.be/Duh4sA9ys64**
 
 For inquiries, feedback, or collaboration opportunities, please feel free to reach out [deeptarupbiswas2020@gmail.com](mailto:deeptarupbiswas2020@gmail.com) | [LinkedIn](https://www.linkedin.com/in/deeptarup-biswas-039825178/)
 
